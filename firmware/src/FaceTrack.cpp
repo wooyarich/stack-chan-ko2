@@ -11,7 +11,7 @@
 
 #define FACETRACK_PATH "/facetrack.json"
 
-static bool   g_enabled     = true;
+static bool   g_enabled     = false;   // 카메라 RAM 제약으로 기본 비활성(웹/API 로 켤 수 있음)
 static int    g_intervalSec = 4;
 static int    g_minCovPct   = 2;
 static uint32_t g_lastMs    = 0;

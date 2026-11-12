@@ -206,10 +206,6 @@
       $('uiServoAmpX').value = d.servoAmpX;
       $('uiServoAmpY').value = d.servoAmpY;
       $('uiListenSec').value = d.listenSec;
-      return fetch('/facetrack_get').then(r => r.json()).then(f => {
-        $('uiFaceTrack').checked = !!f.enabled;
-        $('uiFaceInterval').value = f.intervalSec;
-      });
     }).catch(e => setStatus($('uiStatus'), '로드 실패: ' + e, false));
   }
   $('uiSaveBtn').addEventListener('click', () => {
@@ -223,11 +219,9 @@
       listenSec: parseInt($('uiListenSec').value, 10),
     };
     setStatus($('uiStatus'), '저장 중...', true);
-    postJson('/uitune_set', obj).then(o => {
-      const ft = { enabled: $('uiFaceTrack').checked, intervalSec: parseInt($('uiFaceInterval').value, 10) };
-      return postJson('/facetrack_set', ft).then(f =>
-        setStatus($('uiStatus'), (o.ok && f.ok) ? '저장됨 (즉시 적용)' : '실패: ' + (o.ok ? f.t : o.t), o.ok && f.ok));
-    }).catch(e => setStatus($('uiStatus'), '실패: ' + e, false));
+    postJson('/uitune_set', obj)
+      .then(o => setStatus($('uiStatus'), (o.ok ? '저장됨 (즉시 적용)' : '실패: ' + o.t), o.ok))
+      .catch(e => setStatus($('uiStatus'), '실패: ' + e, false));
   });
 
   // ---------- 근접센서 ----------
