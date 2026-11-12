@@ -28,6 +28,8 @@ extern bool isSilentMode;
 
 extern esp_err_t camera_init(void);
 extern bool camera_ensure_init(void);
+extern camera_fb_t* camera_frame_get(void);              // 사용 후 camera_frame_return()
+extern void camera_frame_return(camera_fb_t* fb);
 extern void camera_release(void);
 extern bool camera_capture_and_face_detect(void);
 extern bool camera_capture_base64(String& out);

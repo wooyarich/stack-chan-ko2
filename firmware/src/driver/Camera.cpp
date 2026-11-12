@@ -59,6 +59,15 @@ bool camera_ensure_init(void) {
   return ok;
 }
 
+// 분석용 프레임 접근(호출자가 반드시 camera_frame_return).
+camera_fb_t* camera_frame_get(void) {
+  M5.In_I2C.release();
+  return esp_camera_fb_get();
+}
+void camera_frame_return(camera_fb_t* fb) {
+  if (fb) esp_camera_fb_return(fb);
+}
+
 // 캡처 후 해제해 내부 RAM 을 돌려준다.
 void camera_release(void) {
   if (!s_cam_inited) return;

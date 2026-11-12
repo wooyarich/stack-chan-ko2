@@ -192,6 +192,9 @@
       <div class="row">머리 좌우 진폭 <input type="number" id="uiServoAmpX" min="0" max="20"> 도</div>
       <div class="row">머리 상하 진폭 <input type="number" id="uiServoAmpY" min="0" max="20"> 도</div>
       <div class="row">무음 청취 종료 <input type="number" id="uiListenSec" min="5" max="60"> 초</div>
+      <label><input type="checkbox" id="uiFaceTrack"> 얼굴 추적 (중간중간 나를 바라봄)</label>
+      <div class="row">추적 주기 <input type="number" id="uiFaceInterval" min="2" max="30"> 초</div>
+      <p class="note">추적할 때만 카메라를 켰다 끄므로 평상시 메모리 영향은 없습니다.</p>
       <button type="button" id="uiSaveBtn">표시·움직임 저장</button>
       <div id="uiStatus" class="status"></div>
     </div>

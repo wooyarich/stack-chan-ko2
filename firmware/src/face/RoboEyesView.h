@@ -14,6 +14,8 @@ void roboeyes_view_release();  // 아바타 얼굴 렌더 재개
 void roboeyes_view_render();   // 한 프레임 렌더(mod idle에서 호출). sd_pause 중엔 스킵.
                                // 매 프레임 avatar.getExpression() → setMood 매핑(변경 시).
 void roboeyes_view_blink();    // 수동 깜빡임 1회
+// 얼굴 추적용: nx/ny(-1..1) 방향으로 눈(과 머리)을 돌린다. 범위를 벗어난 값은 클램프.
+void roboeyes_view_look_at(float nx, float ny);
 bool roboeyes_view_ready();
 
 // 발화 중 "말하는 눈": 오디오 레벨(0.0~1.0)을 매 프레임 전달. 0=정지(립싱크 대체).

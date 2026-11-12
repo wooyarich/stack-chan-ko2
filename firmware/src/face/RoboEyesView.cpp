@@ -204,6 +204,32 @@ void roboeyes_view_release() {
   m5avatar::g_avatar_render_pause = false;
 }
 
+void roboeyes_view_look_at(float nx, float ny)
+{
+  if (!g_ready) return;
+  if (nx < -1.0f) nx = -1.0f; else if (nx > 1.0f) nx = 1.0f;
+  if (ny < -1.0f) ny = -1.0f; else if (ny > 1.0f) ny = 1.0f;
+
+  const int maxX = g_eyes.getScreenConstraint_X();
+  const int cy   = g_eyes.getScreenConstraint_Y();
+  int dx = (int)(nx * (maxX * 0.28f));          // 좌우 이동 폭 제한
+  int dy = (int)(ny * (cy   * 0.18f));          // 상하 이동 폭 제한
+
+  int lx = g_eyes.eyeLxNext + dx;
+  int rx = g_eyes.eyeRxNext + dx;
+  int ly = g_eyes.eyeLyNext + dy;
+
+  if (lx < 0) lx = 0; if (lx > maxX) lx = maxX;
+  if (rx < 0) rx = 0; if (rx > maxX) rx = maxX;
+  int eyeTop = ui_eye_top_min();
+  if (ly < eyeTop) ly = eyeTop;
+  if (ly > cy) ly = cy;
+
+  g_eyes.eyeLxNext = lx;
+  g_eyes.eyeRxNext = rx;
+  g_eyes.eyeLyNext = ly;
+}
+
 void roboeyes_view_blink() {
   if (g_ready) g_eyes.blink();
 }

@@ -20,6 +20,7 @@
 #include "IdleMotion.h"
 #include "IdleTalk.h"
 #include "UiTuning.h"   // 화면·움직임 튜닝 값
+#include "FaceTrack.h"  // 간이 얼굴 추적(주기 샘플링)
 #include "PetReaction.h"
 #include "TouchReaction.h"
 #include "BatteryReaction.h"
@@ -751,6 +752,7 @@ void setup()
   // from the settings web page. Needs avatar + robot ready (done above).
   idle_motion_init();
   ui_tuning_init();
+  face_track_init();
 
   // Proximity reaction (eyes grow as something approaches; surprise when close).
   // Uses the CoreS3 built-in LTR-553 sensor on the internal I2C bus. Disables
@@ -790,6 +792,7 @@ void loop()
   // with the framework and never races on the shared bus. Each is self-throttled.
   proximity_tick();
   pet_reaction_tick();
+  face_track_tick();
   touch_reaction_tick();
   battery_reaction_tick();
   night_mode_tick();

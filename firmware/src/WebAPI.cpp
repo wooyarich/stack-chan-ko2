@@ -10,6 +10,7 @@
 #include "IdleMotion.h"
 #include "IdleTalk.h"
 #include "UiTuning.h"
+#include "FaceTrack.h"
 #include "PetReaction.h"
 #include "TouchReaction.h"
 #include "BatteryReaction.h"
@@ -256,6 +257,18 @@ void handle_volume_set() {
   } else {
     server.send(500, "text/plain", "SPIFFS write failed");
   }
+}
+
+// ---- 얼굴 추적 ---------------------------------------------------------------
+void handle_facetrack_get() {
+  server.send(200, "application/json", face_track_get_json());
+}
+void handle_facetrack_set() {
+  if (server.method() != HTTP_POST) { server.send(405, "text/plain", "POST only"); return; }
+  if (face_track_set_json(server.arg("plain")))
+    server.send(200, "text/plain", "ok");
+  else
+    server.send(400, "text/plain", "invalid JSON or write failed");
 }
 
 // ---- 화면 · 움직임 튜닝 -----------------------------------------------------
@@ -722,6 +735,8 @@ void init_web_server(void)
   // 화면 · 움직임 튜닝
   server.on("/uitune_get", handle_uitune_get);
   server.on("/uitune_set", HTTP_POST, handle_uitune_set);
+  server.on("/facetrack_get", handle_facetrack_get);
+  server.on("/facetrack_set", HTTP_POST, handle_facetrack_set);
   // Proximity sensor
   server.on("/prox_get", handle_prox_get);
   server.on("/prox_set", HTTP_POST, handle_prox_set);
