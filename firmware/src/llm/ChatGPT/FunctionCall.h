@@ -21,7 +21,7 @@ extern TimerHandle_t xAlarmTimer;
 extern String note;
 
 // Boot-time entry point: spawns the background data-refresh task that fills the
-// external API caches (weather, air, meals, todos, schedules) every ~5 min.
+// external API caches (weather, air, todos, schedules) every ~5 min.
 // Call once from main.cpp setup() AFTER Wi-Fi connect + NTP sync.
 void start_external_data_prefetch();
 
@@ -62,7 +62,6 @@ public:
     // Custom Korean external services
     String get_weather();
     String get_air_quality();
-    String get_school_meal(const char* when);
     String get_todos();
     String get_schedules();
 

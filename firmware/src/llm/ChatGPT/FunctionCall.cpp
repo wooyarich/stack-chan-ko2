@@ -153,21 +153,6 @@ const String json_Functions =
     "\"parameters\": { \"type\":\"object\", \"properties\": {} }"
   "},"
   "{"
-    "\"name\": \"get_school_meal\","
-    "\"description\": \"등록한 학교의 급식 메뉴를 가져온다. when=today/tomorrow/week 중 선택.\","
-    "\"parameters\": {"
-      "\"type\":\"object\","
-      "\"properties\": {"
-        "\"when\":{"
-          "\"type\": \"string\","
-          "\"description\": \"가져올 기간\","
-          "\"enum\": [\"today\", \"tomorrow\", \"week\"]"
-        "}"
-      "},"
-      "\"required\": [\"when\"]"
-    "}"
-  "},"
-  "{"
     "\"name\": \"get_todos\","
     "\"description\": \"사용자의 활성 할일 목록(마감일/우선순위)을 가져온다. 사용자가 할일/투두/해야할일을 물으면 호출한다.\","
     "\"parameters\": { \"type\":\"object\", \"properties\": {} }"
@@ -382,10 +367,6 @@ String FunctionCall::exec_calledFunc(const char* name, const char* args){
     }
     else if(strcmp(name, "get_air_quality") == 0){
       response = get_air_quality();
-    }
-    else if(strcmp(name, "get_school_meal") == 0){
-      const char* when = argsDoc["when"];
-      response = get_school_meal(when ? when : "today");
     }
     else if(strcmp(name, "get_todos") == 0){
       response = get_todos();
@@ -935,7 +916,6 @@ static String fc_ymd_dash_kst(int dayOffset) {
 // Tools read these instantly; data_refresh_loop fills them every ~5 minutes.
 static String g_cache_weather;
 static String g_cache_air;
-static String g_cache_meals_week;   // entire current week; get_school_meal filters by 'when'
 static String g_cache_todos;
 static String g_cache_schedules;
 static volatile bool g_refresh_task_started = false;
@@ -943,7 +923,7 @@ static volatile bool g_refresh_task_started = false;
 // ----- Internal fetchers (called only from the refresh task, never on the WS path) -----
 static String do_fetch_weather() {
   // 날씨 지역: 본인 도시명으로 변경하세요 (wttr.in 도시명. 예: Seoul, Busan, Daegu).
-  String body = fc_http_get("http://wttr.in/Seoul?format=%l|%C|%t|%f|%h&lang=ko");
+  String body = fc_http_get("http://wttr.in/Gimpo?format=%l|%C|%t|%f|%h&lang=ko");
   if (body.length() == 0) return String();
   body.trim();
   int p1 = body.indexOf('|');
@@ -959,8 +939,8 @@ static String do_fetch_weather() {
 }
 
 static String do_fetch_air() {
-  // 미세먼지 측정소: stationName 을 본인 측정소명(URL 인코딩)으로 변경. 예: 종로구=%EC%A2%85%EB%A1%9C%EA%B5%AC
-  String body = fc_https_get("https://k-skill-proxy.nomadamas.org/v1/fine-dust/report?stationName=%EC%A2%85%EB%A1%9C%EA%B5%AC");
+  // 미세먼지 측정소: stationName 을 본인 측정소명(URL 인코딩)으로 변경. 예: 종로구=%EA%B3%A0%EC%B4%8C%EC%9D%8D
+  String body = fc_https_get("https://k-skill-proxy.nomadamas.org/v1/fine-dust/report?stationName=%EA%B3%A0%EC%B4%8C%EC%9D%8D");
   if (body.length() == 0) return String();
   DynamicJsonDocument doc(4096);
   if (deserializeJson(doc, body)) return String();
@@ -973,47 +953,6 @@ static String do_fetch_air() {
   out["pm25"] = doc["pm25"]["value"];
   out["pm25grade"] = doc["pm25"]["grade"].as<const char*>();
   out["airGrade"] = doc["khai_grade"].as<const char*>();
-  String result;
-  serializeJson(out, result);
-  return result;
-}
-
-static String do_fetch_meals_week() {
-  time_t now = time(nullptr);
-  struct tm t;
-  localtime_r(&now, &t);
-  int dow = t.tm_wday;                          // 0=Sun .. 6=Sat
-  int toMonday = (dow == 0) ? -6 : (1 - dow);   // Sunday → previous Monday
-  // 급식: 본인 학교의 NEIS 코드로 변경하세요. ATPT_OFCDC_SC_CODE=시도교육청코드, SD_SCHUL_CODE=학교코드.
-  // 코드 조회: https://open.neis.go.kr (학교기본정보 API) 또는 학교알리미. 아래는 예시값이라 그대로면 동작하지 않습니다.
-  String url = "https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=B10&SD_SCHUL_CODE=0000000&MLSV_FROM_YMD=" +
-               fc_ymd_kst(toMonday) + "&MLSV_TO_YMD=" + fc_ymd_kst(toMonday + 4);
-  String body = fc_https_get(url);
-  if (body.length() == 0) return String();
-  DynamicJsonDocument doc(16384);
-  if (deserializeJson(doc, body)) return String();
-  JsonVariant rowsVar = doc["mealServiceDietInfo"][1]["row"];
-  if (rowsVar.isNull()) return String("{\"meals\":[]}");
-  DynamicJsonDocument out(8192);
-  JsonArray meals = out.createNestedArray("meals");
-  for (JsonObject row : rowsVar.as<JsonArray>()) {
-    JsonObject m = meals.createNestedObject();
-    m["date"] = row["MLSV_YMD"].as<const char*>();
-    String dish = row["DDISH_NM"].as<String>();
-    dish.replace("<br/>", ", ");
-    dish.replace("<br>", ", ");
-    String cleaned;
-    cleaned.reserve(dish.length());
-    int depth = 0;
-    for (size_t i = 0; i < dish.length(); i++) {
-      char c = dish.charAt(i);
-      if (c == '(') depth++;
-      else if (c == ')') { if (depth > 0) depth--; }
-      else if (depth == 0) cleaned += c;
-    }
-    cleaned.trim();
-    m["dishes"] = cleaned;
-  }
   String result;
   serializeJson(out, result);
   return result;
@@ -1087,33 +1026,7 @@ static String do_fetch_schedules() {
   return result;
 }
 
-// Filter the cached weekly meal data down to today / tomorrow / week.
-static String filter_meals_by_when(const char* when) {
-  if (g_cache_meals_week.length() == 0) {
-    return "{\"status\":\"meal info not ready, ask again in a moment\"}";
-  }
-  if (strcmp(when, "week") == 0) return g_cache_meals_week;
-  DynamicJsonDocument week(16384);
-  if (deserializeJson(week, g_cache_meals_week)) return g_cache_meals_week;
-  String targetYmd = fc_ymd_kst(strcmp(when, "tomorrow") == 0 ? 1 : 0);
-  DynamicJsonDocument out(4096);
-  JsonArray meals = out.createNestedArray("meals");
-  for (JsonObject m : week["meals"].as<JsonArray>()) {
-    if (String(m["date"].as<const char*>()) == targetYmd) {
-      JsonObject o = meals.createNestedObject();
-      o["date"] = m["date"].as<const char*>();
-      o["dishes"] = m["dishes"].as<const char*>();
-    }
-  }
-  if (meals.size() == 0) {
-    out["status"] = "no meal info for that day";
-  }
-  String result;
-  serializeJson(out, result);
-  return result;
-}
-
-// FreeRTOS task: refresh all 5 caches every 5 minutes. Pinned to APP_CPU so it
+// FreeRTOS task: refresh all 4 caches every 5 minutes. Pinned to APP_CPU so it
 // doesn't fight the WiFi/audio tasks on PRO_CPU.
 static void data_refresh_loop(void* arg) {
   // Initial delay so WiFi connect + NTP sync are complete before the first fetch.
@@ -1123,13 +1036,11 @@ static void data_refresh_loop(void* arg) {
     String s;
     s = do_fetch_weather();    if (s.length() > 0) g_cache_weather = s;
     s = do_fetch_air();        if (s.length() > 0) g_cache_air = s;
-    s = do_fetch_meals_week(); if (s.length() > 0) g_cache_meals_week = s;
     s = do_fetch_todos();      if (s.length() > 0) g_cache_todos = s;
     s = do_fetch_schedules();  if (s.length() > 0) g_cache_schedules = s;
-    Serial.printf("[fn] data refresh done: w=%u air=%u meals=%u todos=%u sched=%u\n",
+    Serial.printf("[fn] data refresh done: w=%u air=%u todos=%u sched=%u\n",
                   (unsigned)g_cache_weather.length(),
                   (unsigned)g_cache_air.length(),
-                  (unsigned)g_cache_meals_week.length(),
                   (unsigned)g_cache_todos.length(),
                   (unsigned)g_cache_schedules.length());
     vTaskDelay(pdMS_TO_TICKS(5 * 60 * 1000));
@@ -1152,9 +1063,6 @@ String FunctionCall::get_weather() {
 String FunctionCall::get_air_quality() {
   if (g_cache_air.length() == 0) return "{\"status\":\"air quality not ready, ask again in a moment\"}";
   return g_cache_air;
-}
-String FunctionCall::get_school_meal(const char* when) {
-  return filter_meals_by_when(when ? when : "today");
 }
 String FunctionCall::get_todos() {
   if (g_cache_todos.length() == 0) return "{\"status\":\"todos not ready, ask again in a moment\"}";
