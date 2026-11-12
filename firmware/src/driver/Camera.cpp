@@ -40,7 +40,7 @@ static camera_config_t camera_config = {
 
     // GC0308 은 JPEG 출력을 지원하지 않아 RGB565 로 받아 frame2jpg 로 변환한다.
     .pixel_format = PIXFORMAT_RGB565,
-    .frame_size   = FRAMESIZE_QQVGA,  // QQVGA(160x120) — 내부 RAM 여유 확보
+    .frame_size   = FRAMESIZE_96X96,  // 96x96 — 내부 RAM 절약(프레임 18KB)
     .jpeg_quality = 45,               // frame2jpg 품질
     .fb_count     = 1,
     .fb_location  = CAMERA_FB_IN_PSRAM,
