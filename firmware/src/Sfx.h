@@ -21,6 +21,8 @@ bool sfx_play_file(const char* file);      // low-level: play a specific file (t
 // AI 발화가 끝난 뒤 sfx_pump() 가 함. (발화 중 sfx_play_file 의 "speaking 스킵" 가드로
 // 음성 효과음이 무시되던 문제 해결.)
 bool sfx_request_name(const char* name);
+// 이름으로 매칭되는 사운드의 mp3 가 SD에 실제로 존재하는지 확인(툴 응답 정직성용).
+bool sfx_file_ready(const char* name);
 void sfx_pump();                           // loop 에서 호출: 발화 끝나면 대기 중 사운드 재생
 
 String sfx_get_json();                     // {enabled, sounds:[{name,file,event}], files:[..sd..]}

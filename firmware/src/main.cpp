@@ -737,10 +737,8 @@ void setup()
   // on first boot so the existing family persona is preserved. Needs robot->llm ready.
   persona_init();
 
-#if defined(ENABLE_CAMERA)
-  camera_init();
-  avatar.set_isSubWindowEnable(true);
-#endif
+// 카메라는 사용할 때만 초기화한다(CameraVision). 상시 초기화는 내부 RAM 49KB 를
+// 점유해 날씨/미세먼지 등 HTTPS 호출을 실패시킨다.
 
 #if defined(ENABLE_TAP_DETECT)
   invokeDoubleTapDetectTask();

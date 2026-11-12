@@ -161,6 +161,18 @@ bool sfx_request_name(const char* name) {
   return true;
 }
 
+// 이름 → 등록된 파일이 SD에 실제로 있는지. 없는데 "재생할게요"라고 답해
+// 사용자에게 거짓말이 되던 문제를 막기 위해 툴에서 먼저 확인한다.
+bool sfx_file_ready(const char* name) {
+  int i = sfx_match_index(name);
+  if (i < 0) return false;
+  String path = String(SFX_DIR) + g_sounds[i].file;
+  sd_bus_lock();
+  bool ex = SD.exists(path.c_str());
+  sd_bus_unlock();
+  return ex;
+}
+
 // loop 에서 매 틱 호출. 발화 중이 아니면 대기 중 사운드를 재생(없으면 즉시 반환).
 void sfx_pump() {
   if (!g_pendingFile.length()) return;

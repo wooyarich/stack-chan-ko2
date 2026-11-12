@@ -38,16 +38,35 @@ static camera_config_t camera_config = {
     .ledc_timer   = LEDC_TIMER_0,
     .ledc_channel = LEDC_CHANNEL_0,
 
+    // GC0308 은 JPEG 출력을 지원하지 않아 RGB565 로 받아 frame2jpg 로 변환한다.
     .pixel_format = PIXFORMAT_RGB565,
-    //.pixel_format = PIXFORMAT_JPEG,
-    //.frame_size   = FRAMESIZE_QVGA,   // QVGA(320x240)
-    .frame_size   = FRAMESIZE_VGA,   // VGA(640x480)
-    .jpeg_quality = 0,
-    //.fb_count     = 2,
+    .frame_size   = FRAMESIZE_QQVGA,  // QQVGA(160x120) — 내부 RAM 여유 확보
+    .jpeg_quality = 45,               // frame2jpg 품질
     .fb_count     = 1,
     .fb_location  = CAMERA_FB_IN_PSRAM,
     .grab_mode    = CAMERA_GRAB_WHEN_EMPTY,
 };
+
+static bool s_cam_inited = false;
+
+// 필요할 때만 초기화(내부 RAM 절약). 이미 초기화되어 있으면 그대로 true.
+bool camera_ensure_init(void) {
+  if (s_cam_inited) return true;
+  bool ok = (camera_init() == ESP_OK);
+  s_cam_inited = ok;
+  Serial.printf("[camera] init %s (internal free=%u)\n", ok ? "ok" : "FAILED",
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+  return ok;
+}
+
+// 캡처 후 해제해 내부 RAM 을 돌려준다.
+void camera_release(void) {
+  if (!s_cam_inited) return;
+  esp_camera_deinit();
+  s_cam_inited = false;
+  Serial.printf("[camera] released (internal free=%u)\n",
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+}
 
 esp_err_t camera_init(void){
 
@@ -201,40 +220,25 @@ bool camera_capture_base64(String& out)
     return false;
   }
 
-  size_t jpg_buf_len = 0;
-  uint8_t *jpg_buf   = NULL;
-  int ret;
-  bool jpeg_converted = frame2jpg(fb, 80, &jpg_buf, &jpg_buf_len);
-  esp_camera_fb_return(fb);
-  fb = NULL;
-  if (!jpeg_converted) {
-    Serial.println("JPEG compression failed");
-    return false;
-  }
+  // JPEG 센서 출력이면 버퍼를 그대로 쓴다(변환 버퍼/내부 RAM 절약).
+  uint8_t *jpg_buf     = fb->buf;
+  size_t   jpg_buf_len = fb->len;
+  uint8_t *conv_buf    = NULL;
 
-#if 1 //debug
-  File fdst = SPIFFS.open("/capture.jpg", FILE_WRITE);
-  if ((ret = fdst.write(jpg_buf, jpg_buf_len)) < jpg_buf_len) {
-    Serial.printf("write spiffs failed: %d - %d\n", ret, jpg_buf_len);
-    return false;
+  if (fb->format != PIXFORMAT_JPEG) {
+    if (!frame2jpg(fb, 80, &conv_buf, &jpg_buf_len)) {
+      esp_camera_fb_return(fb);
+      Serial.println("JPEG compression failed");
+      return false;
+    }
+    jpg_buf = conv_buf;
   }
-#endif
-
 
   out = base64::encode(jpg_buf, jpg_buf_len);
 
-#if 0 //debug
-  fdst = SPIFFS.open("/capture_base64.txt", FILE_WRITE);
-  if ((ret = fdst.write((const uint8_t*)out.c_str(), out.length())) < out.length()) {
-    Serial.printf("write spiffs failed: %d - %d\n", ret, out.length());
-    return false;
-  }
-#endif
-
-  free(jpg_buf);
-  jpg_buf = NULL;
-  
-  return true;
+  if (conv_buf) free(conv_buf);
+  esp_camera_fb_return(fb);
+  return out.length() > 0;
 }
 
 #endif

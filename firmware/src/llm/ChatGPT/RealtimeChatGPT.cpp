@@ -435,6 +435,15 @@ void RealtimeChatGPT::pushUserText(const String& text) {
   xSemaphoreGive(proactiveMux);
 }
 
+void RealtimeChatGPT::pushImage(const String& base64_jpeg, const String& caption) {
+  if (proactiveMux == NULL || base64_jpeg.length() == 0) return;
+  xSemaphoreTake(proactiveMux, portMAX_DELAY);
+  pendingImageB64 = base64_jpeg;
+  pendingImageCaption = caption;
+  hasPendingImage = true;
+  xSemaphoreGive(proactiveMux);
+}
+
 // Request a session reconnect (handled on the WS task in onWebSocketTick).
 void RealtimeChatGPT::requestReconnect() {
   reconnectRequest = true;
@@ -466,7 +475,36 @@ void RealtimeChatGPT::onWebSocketTick() {
     return;
   }
 
-  // (2) Drain a queued proactive utterance.
+  // (2) 카메라 이미지 전송
+  if (hasPendingImage) {
+    String b64, cap;
+    xSemaphoreTake(proactiveMux, portMAX_DELAY);
+    b64 = pendingImageB64; cap = pendingImageCaption;
+    pendingImageB64 = String(); pendingImageCaption = String();
+    hasPendingImage = false;
+    xSemaphoreGive(proactiveMux);
+
+    if (!webSocket.isConnected()) {
+      Serial.println("[vision] image dropped (WS disconnected)");
+      return;
+    }
+    String esc = cap;
+    esc.replace("\\", "\\\\"); esc.replace("\"", "\\\""); esc.replace("\n", " ");
+    String json;
+    json.reserve(b64.length() + esc.length() + 256);
+    json  = "{\"type\":\"conversation.item.create\",\"item\":{\"type\":\"message\",\"role\":\"user\",\"content\":[";
+    json += "{\"type\":\"input_text\",\"text\":\"";
+    json += esc;
+    json += "\"},{\"type\":\"input_image\",\"image_url\":\"data:image/jpeg;base64,";
+    json += b64;
+    json += "\"}]}}";
+    bool sent = webSocket.sendTXT(json);
+    Serial.printf("[vision] image sent=%d (%u bytes)\n", (int)sent, (unsigned)json.length());
+    json = String();
+    b64 = String();
+  }
+
+  // (3) Drain a queued proactive utterance.
   if (!hasPendingProactive) return;
 
   String text;

@@ -1,5 +1,6 @@
 #include "FunctionCall.h"
 #include "Sfx.h"
+#include "CameraVision.h"   // look_at_me 도구(카메라로 사용자 보기)
 #include "NightMode.h"
 #include "DiagLog.h"   // play_sound 진단 (FTP /diag.log)
 #include <Avatar.h>
@@ -172,6 +173,11 @@ const String json_Functions =
       "},"
       "\"required\": [\"name\"]"
     "}"
+  "},"
+  "{"
+    "\"name\": \"look_at_me\","
+    "\"description\": \"사용자가 '내 모습 보여?', '지금 나 봐', '뭐가 보여?', '카메라로 찍어봐', '지금 내 얼굴 어때?' 처럼 카메라로 보기를 요청하면 반드시 호출한다. 호출하면 방금 찍은 사진의 내용이 결과로 돌아오고, 너는 그걸 근거로 자연스럽게 한국어로 말한다. 사진에 없는 것은 지어내지 않는다.\","
+    "\"parameters\": { \"type\":\"object\", \"properties\": { \"hint\":{ \"type\": \"string\", \"description\": \"무엇을 중점적으로 볼지(선택). 예: 표정, 주변, 옷\" } } }"
   "},"
   "{"
     "\"name\": \"set_sleep_mode\","
@@ -376,9 +382,20 @@ String FunctionCall::exec_calledFunc(const char* name, const char* args){
     }
     else if(strcmp(name, "play_sound") == 0){
       const char* sname = argsDoc["name"];
-      bool ok = (sname && sname[0]) ? sfx_request_name(sname) : false;   // 큐 적재 → 발화 끝난 뒤 sfx_pump 가 재생
-      diag_log("[sfx] play_sound tool called name='%s' matched=%d", sname ? sname : "", (int)ok);
-      response = ok ? "{\"result\":\"재생할게요.\"}" : "{\"result\":\"그 이름의 사운드를 찾지 못했어요. 등록된 효과음이 없거나 이름이 달라요.\"}";
+      // SD에 파일이 없으면 큐에 넣지 않고 정직하게 실패를 알린다(모델이 "틀었다"고 거짓말하던 문제).
+      bool ok = (sname && sname[0]) ? sfx_file_ready(sname) : false;
+      if (ok) sfx_request_name(sname);
+      diag_log("[sfx] play_sound tool called name='%s' file_ready=%d", sname ? sname : "", (int)ok);
+      response = ok ? "{\"result\":\"재생할게요.\"}"
+                    : "{\"result\":\"그 사운드 파일이 SD카드에 없어서 재생하지 못했어요. 사용자에게 파일이 없어서 못 틀었다고 정직하게 말해줘.\"}";
+    }
+    else if(strcmp(name, "look_at_me") == 0){
+      String hint = String((const char*)(argsDoc["hint"] | ""));
+      bool ok = camera_vision_capture_and_send(hint);
+      response = ok
+        ? "{\"result\":\"방금 사진을 찍었고 너에게 이미지를 보냈어. 본 것을 사용자에게 자연스럽게 말해줘. 사진에 없는 건 지어내지 마.\"}"
+        : "{\"result\":\"카메라로 보지 못했어요. 사용자에게 지금은 사진을 못 찍었다고 정직하게 말해줘.\"}";
+      diag_log("[vision] look_at_me ok=%d", (int)ok);
     }
     else if(strcmp(name, "set_sleep_mode") == 0){
       bool sleep = argsDoc["sleep"] | true;

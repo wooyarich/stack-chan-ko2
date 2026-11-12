@@ -393,7 +393,7 @@ void handle_look() {
   if (camera_vision_look(hint))
     server.send(200, "text/plain", "looked");
   else
-    server.send(503, "text/plain", "camera/vision unavailable (camera build + online required)");
+    server.send(503, "text/plain", String("look failed: ") + camera_vision_last_error());
 }
 
 // ---- 웹 조이스틱 머리 수동 제어 (/servo_move, body "x,y" 각 -1..1) ----

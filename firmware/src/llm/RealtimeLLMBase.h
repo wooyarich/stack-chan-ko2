@@ -61,6 +61,9 @@ public:
     // WebSocket task, so it may only enqueue — never touch webSocket directly.
     virtual void pushUserText(const String& text) {}
 
+    // 촬영 이미지(base64 JPEG)를 user 메시지로 주입. pushUserText 와 같은 스레드 규칙(큐 적재만).
+    virtual void pushImage(const String& base64_jpeg, const String& caption) {}
+
     // Called from the WebSocket task each iteration (after webSocket.loop()), so
     // it is the only safe place outside the event callback to touch webSocket.
     // Concrete realtime LLMs use it to drain queued proactive text and to run the

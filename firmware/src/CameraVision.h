@@ -3,21 +3,18 @@
 
 #include <Arduino.h>
 
-// GPT-4o vision for the realtime mode. The Realtime API itself can't take images,
-// so this captures a JPEG, sends it to /v1/chat/completions (gpt-4o-mini) as a
-// separate REST call, then injects the short description back into the live
-// conversation via pushUserText so Stack-chan speaks about what it saw.
+// Realtime 모드 카메라: 촬영한 JPEG(base64)를 이미 열려 있는 실시간 세션에
+// 아이템으로 넣어 모델이 직접 사진을 보게 한다.
+// (별도 REST 호출 방식은 TLS 핸드셰이크용 내부 RAM 부족으로 실패해서 쓰지 않는다.)
 //
-// Only does anything in a build with -DENABLE_CAMERA. Always compiles (no-ops
-// otherwise) so the web handler and sensor guards can call it unconditionally.
-//
-// ⚠️ The camera SCCB shares the CoreS3 internal I2C bus with the proximity / IMU /
-// power / touch sensors. While a capture is in progress camera_is_busy() is true
-// and those loop-tick sensors skip their I2C reads. Whether the camera and those
-// sensors can coexist at all on this unit is UNVERIFIED — device test required.
+// ENABLE_CAMERA 빌드에서만 동작하고, 그 외에는 no-op(false)라 호출부는 그대로 둔다.
+// ⚠️ 카메라 SCCB는 근접/IMU/전원/터치와 내부 I2C를 공유한다. 캡처 중에는
+//    camera_is_busy()가 true가 되어 해당 센서들이 I2C 읽기를 건너뛴다.
 
 void camera_vision_init();
-bool camera_vision_look(const String& hint);   // capture + describe + inject; true if it spoke
-bool camera_is_busy();                          // sensors skip internal-I2C while true
+bool camera_vision_look(const String& hint);              // 웹 UI용: 촬영 + 세션 주입
+bool camera_vision_capture_and_send(const String& caption);  // LLM 툴용: 촬영+이미지 전송
+const char* camera_vision_last_error();                   // 마지막 실패 사유(진단용)
+bool camera_is_busy();                                    // sensors skip internal-I2C while true
 
 #endif  // _CAMERA_VISION_H
