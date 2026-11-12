@@ -7,7 +7,6 @@
 #include "Sfx.h"          // 충전/배터리부족 효과음 이벤트(음성토글과 무관)
 #include "Gesture.h"
 #include "IdleMotion.h"
-#include "IdleTalk.h"
 #include "CameraVision.h"
 #include "Robot.h"
 #if defined(REALTIME_API)
@@ -25,9 +24,7 @@ static bool   g_enabled        = true;
 static int    g_lowThreshold   = 20;     // percent
 static bool   g_lowReact       = true;
 static int    g_lowIntervalMin = 15;
-static bool   g_chargeReact    = true;
 static String g_lowPrompt    = "지금 배터리가 얼마 안 남았어. 배고픈 듯이 '배고파~ 충전 좀 해줘' 하고 귀엽게 말해줘. 짧게.";
-static String g_chargePrompt = "방금 충전기에 연결됐어. 밥 먹는 강아지처럼 '냠냠, 잘 먹겠습니다!' 하고 기분 좋게 짧게 말해줘.";
 
 static void clampCfg() {
     if (g_lowThreshold < 1) g_lowThreshold = 1;
@@ -63,9 +60,7 @@ static void load_from_spiffs() {
     g_lowThreshold   = doc["lowThreshold"]   | g_lowThreshold;
     g_lowReact       = doc["lowReact"]       | g_lowReact;
     g_lowIntervalMin = doc["lowIntervalMin"] | g_lowIntervalMin;
-    g_chargeReact    = doc["chargeReact"]    | g_chargeReact;
     { const char* p = doc["lowPrompt"]    | ""; if (p && *p) g_lowPrompt = String(p); }
-    { const char* p = doc["chargePrompt"] | ""; if (p && *p) g_chargePrompt = String(p); }
     clampCfg();
     Serial.println("[batt] loaded config from SPIFFS");
 }
@@ -76,9 +71,7 @@ String battery_reaction_get_json() {
     doc["lowThreshold"]   = g_lowThreshold;
     doc["lowReact"]       = g_lowReact;
     doc["lowIntervalMin"] = g_lowIntervalMin;
-    doc["chargeReact"]    = g_chargeReact;
     doc["lowPrompt"]      = g_lowPrompt;
-    doc["chargePrompt"]   = g_chargePrompt;
     doc["level"]          = (int)M5.Power.getBatteryLevel();   // live (for UI)
     doc["charging"]       = M5.Power.isCharging();
     String out; serializeJson(doc, out); return out;
@@ -91,9 +84,7 @@ bool battery_reaction_set_json(const String& json) {
     if (doc.containsKey("lowThreshold"))   g_lowThreshold   = doc["lowThreshold"];
     if (doc.containsKey("lowReact"))       g_lowReact       = doc["lowReact"];
     if (doc.containsKey("lowIntervalMin")) g_lowIntervalMin = doc["lowIntervalMin"];
-    if (doc.containsKey("chargeReact"))    g_chargeReact    = doc["chargeReact"];
     if (doc.containsKey("lowPrompt"))      { const char* p = doc["lowPrompt"]    | ""; g_lowPrompt = String(p); }
-    if (doc.containsKey("chargePrompt"))   { const char* p = doc["chargePrompt"] | ""; g_chargePrompt = String(p); }
     clampCfg();
     File f = SPIFFS.open(BATT_SPIFFS_PATH, "w");
     if (!f) { Serial.println("[batt] SPIFFS open(w) failed"); return false; }
@@ -106,7 +97,6 @@ bool battery_reaction_set_json(const String& json) {
 void battery_reaction_tick() {
     static uint32_t lastCheckMs = 0;
     static uint32_t lastLowMs = 0;
-    static int  prevCharging = -1;   // -1 = unknown
 
     uint32_t now = millis();
     if (now - lastCheckMs < 30000 && lastCheckMs != 0) return;   // every 30s
@@ -117,20 +107,6 @@ void battery_reaction_tick() {
 
     int level = (int)M5.Power.getBatteryLevel();
     bool charging = M5.Power.isCharging();
-
-    // Charging just started (edge). 효과음은 음성반응 토글과 무관하게 발동(매핑 시).
-    if (prevCharging == 0 && charging) {
-        sfx_play_event("charge");
-        if (g_chargeReact && !is_speaking()) {
-            avatar.setExpression(Expression::Happy);
-            gesture_play(Expression::Happy);
-            idle_motion_hold(2500);
-            idle_talk_note_activity();
-            speak(g_chargePrompt);
-            Serial.println("[batt] charge-start reaction");
-        }
-    }
-    prevCharging = charging ? 1 : 0;
 
     // Low battery (not charging) -> 효과음 "low"(매핑 시) + (옵션)음성 "배고파". 간격 제한 공유.
     if (!charging && level > 0 && level <= g_lowThreshold) {

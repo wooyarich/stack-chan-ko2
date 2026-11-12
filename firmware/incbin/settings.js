@@ -384,8 +384,6 @@
       $('battLowThresh').value = d.lowThreshold;
       $('battLowInterval').value = d.lowIntervalMin;
       $('battLowPrompt').value = d.lowPrompt || '';
-      $('battChargeReact').checked = !!d.chargeReact;
-      $('battChargePrompt').value = d.chargePrompt || '';
       $('battLive').innerHTML = '현재: ' + d.level + '% ' + (d.charging ? '⚡충전 중' : '(방전 중)');
     }).catch(e => setStatus($('battStatus'), '로드 실패: ' + e, false));
   }
@@ -396,8 +394,6 @@
       lowThreshold: parseInt($('battLowThresh').value, 10),
       lowIntervalMin: parseInt($('battLowInterval').value, 10),
       lowPrompt: $('battLowPrompt').value,
-      chargeReact: $('battChargeReact').checked,
-      chargePrompt: $('battChargePrompt').value,
     };
     setStatus($('battStatus'), '저장 중...', true);
     postJson('/batt_set', obj)

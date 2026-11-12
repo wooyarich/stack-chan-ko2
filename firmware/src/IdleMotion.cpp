@@ -29,8 +29,8 @@ static const Expression IDLE_EXPR[] = {
 
 struct IdleConfig {
     bool enabled        = true;
-    int  minIntervalSec = 4;     // min seconds between idle actions
-    int  maxIntervalSec = 12;    // max seconds between idle actions
+    int  minIntervalSec = 12;    // min seconds between idle actions
+    int  maxIntervalSec = 30;    // max seconds between idle actions
     int  quietAfterSec  = 3;     // stay calm this long after speech ends
     int  energy         = 5;     // 1..10, higher = more frequent (scales intervals)
     bool gestureEnabled = true;  // play matching head motion with the expression

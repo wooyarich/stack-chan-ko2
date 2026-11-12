@@ -3,9 +3,8 @@
 
 #include <Arduino.h>
 
-// Battery / charging reactions for personality:
-//   * low battery (not charging)  -> looks sad and occasionally says "배고파",
-//   * just plugged in to charge    -> happy "냠냠" reaction (once per plug-in).
+// Battery reactions for personality:
+//   * low battery (not charging)  -> looks sad and occasionally says "배고파".
 //
 // Polled from loop() (M5.Power reads + speech kept on the main task). Tunable
 // from the web UI (/batt_get, /batt_set), persisted to SPIFFS (/battery.json).

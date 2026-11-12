@@ -1,4 +1,8 @@
 #include <Arduino.h>
+#if defined(ARDUINO_M5STACK_CORES3)
+#include <soc/gpio_reg.h>
+#include <soc/gpio_sig_map.h>
+#endif
 //#include <FS.h>
 #include <SD.h>
 #include <SPIFFS.h>
@@ -174,8 +178,8 @@ void servo(void *args)
     if(!servo_home)
     {
       avatar->getGaze(&gazeY, &gazeX);
-      tgtX = (int)(15.0 * gazeX);
-      tgtY = (int)(10.0 * gazeY);
+      tgtX = (int)(10.0 * gazeX);
+      tgtY = (int)(7.0 * gazeY);
     }
     else if(night_mode_is_sleeping())
     {
@@ -185,14 +189,14 @@ void servo(void *args)
     {
       avatar->getGaze(&gazeY, &gazeX);
       if(fabs(gazeX) < 0.15 && fabs(gazeY) < 0.15) { tgtX = 0; tgtY = 0; }   // 시선 중앙 → 정면
-      else { tgtX = (int)(15.0 * gazeX); tgtY = (int)(10.0 * gazeY); }
+      else { tgtX = (int)(10.0 * gazeX); tgtY = (int)(7.0 * gazeY); }
     }
 
-    // 목표가 바뀐 경우에만 이동(떨림/소음 방지). 이징 200ms 로 부드럽게.
+    // 목표가 바뀐 경우에만 이동(떨림/소음 방지). 이징 600ms 로 천천히 → 서보 소음 감소.
     if(tgtX != prevTgtX || tgtY != prevTgtY)
     {
       if(tgtX == 0 && tgtY == 0) robot->servo->moveToOrigin();
-      else                       robot->servo->moveTo(tgtX, tgtY, 200);
+      else                       robot->servo->moveTo(tgtX, tgtY, 600);
       prevTgtX = tgtX; prevTgtY = tgtY;
     }
 #endif
@@ -468,6 +472,58 @@ static bool tryMultiNetworkWifi()
   return false;
 }
 
+// CoreS3는 SD와 LCD가 SPI 버스(GPIO35 MISO/D-C 공유)를 쓰기 때문에, 소프트 리셋
+// 직후 카드가 응답하지 않는 경우가 있다(f_mount failed / Select Failed → 부팅 루프).
+// M5GFXは描画終了時に cs_control(false) で GPIO35 を D/C 出力に戻すため、
+// LCD に1文字描いた時点で SD の MISO が死ぬ。カードに触る前に必ず MISO へ戻す。
+static void sd_release_miso_pin()
+{
+#if defined(ARDUINO_M5STACK_CORES3)
+  *(volatile uint32_t*)GPIO_FUNC35_OUT_SEL_CFG_REG = FSPIQ_OUT_IDX;
+  *(volatile uint32_t*)GPIO_ENABLE1_W1TC_REG = 1u << (GPIO_NUM_35 & 31);
+  delay(5);
+#endif
+}
+
+// CoreS3はSDとLCDがSPIバス(GPIO35 MISO/D-C共有)を兼ねている。
+// まず25MHzで初期化し、通らない場合だけ400kHzで起こしてから高速へ戻す。
+// (リセット直後に4MHz以上での初期化を受け付けないカードが存在するため)
+static bool sd_begin_with_retry()
+{
+  sd_release_miso_pin();
+  if (SD.begin(GPIO_NUM_4, SPI, 25000000)) {
+    Serial.println("[sd] mounted at 25MHz");
+    return true;
+  }
+
+  bool woke = false;
+  for (int i = 0; i < 10 && !woke; i++) {
+    sd_release_miso_pin();
+    woke = SD.begin(GPIO_NUM_4, SPI, 400000);
+    if (!woke) delay(300);
+  }
+  if (!woke) {
+    Serial.println("[sd] mount failed at 400kHz");
+    return false;
+  }
+
+  SD.end();
+  sd_release_miso_pin();
+  if (SD.begin(GPIO_NUM_4, SPI, 25000000)) {
+    Serial.println("[sd] mounted at 25MHz (after 400kHz wake)");
+    return true;
+  }
+
+  sd_release_miso_pin();
+  if (SD.begin(GPIO_NUM_4, SPI, 400000)) {
+    Serial.println("[sd] mounted at 400kHz (fast remount failed)");
+    return true;
+  }
+
+  Serial.println("[sd] mount failed");
+  return false;
+}
+
 void setup()
 {
   auto cfg = M5.config();
@@ -516,7 +572,7 @@ void setup()
                                      "/SC_SecConfig.yaml", 2048,
                                      "/SC_BasicConfig.yaml", 2048);
 #else
-  if (SD.begin(GPIO_NUM_4, SPI, 25000000)) {
+  if (sd_begin_with_retry()) {
     // この関数ですべてのYAMLファイル(Basic, Secret, Extend)を読み込む
     system_config.loadConfig(SD, "/app/AiStackChanEx/SC_ExConfig.yaml");
 #endif
@@ -601,10 +657,12 @@ void setup()
 
     //SD.end();
   } else {
-    M5.Lcd.print("Failed to load SD card settings. System reset after 5 seconds.");
-    delay(5000);
-    ESP.restart();
-    //WiFi.begin();
+    // ソフトリセット後にこのカードはCMD0へ応答しなくなり、ESP.restartを繰り返しても
+    // 復旧しない(ALDO4の電源サイクルでも不可)。電源ボタンでの完全OFF/ONだけが効くため、
+    // 無限リブートせず状況を表示して待つ。
+    M5.Lcd.println("SD card error. Power off, then on.");
+    Serial.println("[sd] mount failed. power cycle required.");
+    while (true) { delay(1000); }
   }
   
   mp3_init();

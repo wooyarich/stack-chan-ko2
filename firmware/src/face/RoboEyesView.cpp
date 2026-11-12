@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <time.h>
 #include <M5Unified.h>
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
@@ -119,6 +120,7 @@ static const char* emotion_event(int expr) {
 }
 
 static const int   EYE_H    = 92;   // 기본 눈 높이(roboeyes_view_begin 과 일치)
+static const int   EYE_TOP_MIN = 44;  // 눈 top 하한 — 상단 시계(efontKR_24)와 겹치지 않게
 static const float SAD_SCALE = 0.62f;
 static const float DOUBT_SQUINT = 0.45f;
 
@@ -185,7 +187,7 @@ void roboeyes_view_begin() {
   g_eyes.setBorderradius(28, 28);
   g_eyes.setSpacebetween(44);
   g_eyes.setAutoblinker(ON, 3, 2);     // 3초(+0~2초)마다 깜빡
-  g_eyes.setIdleMode(ON, 2, 2);        // 2초(+0~2초)마다 시선 이동
+  g_eyes.setIdleMode(ON, 6, 4);        // 6초(+0~4초)마다 시선 이동 — 잦은 머리 움직임/소음 감소
   g_eyes.setIdleVRange(67);            // 시선 상하 이동을 화면 상단 2/3로 제한(아랫부분 미사용)
   g_ready = true;
   Serial.println("[roboeyes] view ready (320x240, PSRAM)");
@@ -257,6 +259,9 @@ void roboeyes_view_render() {
     if (!g_sleeping && g_talkLevel > 0.06f) g_eyes.setVFlicker(true, 1 + (int)(g_talkLevel * 3.0f));
     else                                    g_eyes.setVFlicker(false, 0);
 
+    // 상단 시계 영역으로 눈이 올라가지 않도록 하한 클램프(눈 사각형 top 좌표).
+    if (g_eyes.eyeLy     < EYE_TOP_MIN) g_eyes.eyeLy     = EYE_TOP_MIN;
+    if (g_eyes.eyeLyNext < EYE_TOP_MIN) g_eyes.eyeLyNext = EYE_TOP_MIN;
     g_eyes.drawEyes();                        // 눈 그리기(어댑터 display()=no-op → push 안 함)
 
     // 시선↔서보: 눈 목표 위치 → avatar gaze. 서보 태스크가 servo_home=false(발화 중)일 때
@@ -268,6 +273,23 @@ void roboeyes_view_render() {
     if (h > 1) h = 1; else if (h < -1) h = -1;
     if (v > 1) v = 1; else if (v < -1) v = -1;
     avatar.setGaze(v, h);
+
+    // 상단 중앙 현재 시각 — 문자열을 캐시해 매 프레임 같은 값을 그린다.
+    // (getLocalTime 이 간헐적으로 실패해 시계가 사라지는 현상 방지)
+    static char     g_clockStr[8]  = "--:--";
+    static uint32_t g_clockUpdMs   = 0;
+    uint32_t nowMs = millis();
+    if (nowMs - g_clockUpdMs >= 1000) {
+      g_clockUpdMs = nowMs;
+      struct tm tm_now;
+      if (getLocalTime(&tm_now, 0)) {
+        snprintf(g_clockStr, sizeof(g_clockStr), "%02d:%02d", tm_now.tm_hour, tm_now.tm_min);
+      }
+    }
+    g_cv->setFont(&fonts::efontKR_24);
+    g_cv->setTextColor(0xFFFF, 0x0000);     // 흰색
+    g_cv->setTextDatum(textdatum_t::top_center);
+    g_cv->drawString(g_clockStr, 160, 2);
 
     if (!g_sleeping && g_status.length()) {   // 하단 상태 텍스트 오버레이(자는 중엔 숨김)
       g_cv->setFont(&fonts::efontKR_16);

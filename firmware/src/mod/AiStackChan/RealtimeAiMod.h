@@ -9,11 +9,6 @@
 
 class RealtimeAiMod: public ModBase{
 private:
-    box_t box_servo;
-    box_t box_stt;
-    box_t box_BtnA;
-    box_t box_BtnC;
-
     String avatarText;
     bool isOffline;
 

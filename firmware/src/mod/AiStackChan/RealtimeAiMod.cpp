@@ -33,11 +33,6 @@ extern void alarm_tone();
 RealtimeAiMod::RealtimeAiMod(bool _isOffline)
   : isOffline{_isOffline}
 {
-  box_servo.setupBox(80, 120, 80, 80);
-  box_stt.setupBox(0, 0, M5.Display.width(), 60);
-  box_BtnA.setupBox(0, 100, 40, 60);
-  box_BtnC.setupBox(280, 100, 40, 60);
-
   pRtLLM = (RealtimeLLMBase*)robot->llm;
   pRtLLM->invokeWebSocketLoopTask();
 
@@ -108,6 +103,8 @@ void RealtimeAiMod::btnC_pressed(void)
 
 void RealtimeAiMod::display_touched(int16_t x, int16_t y)
 {
+  (void)x;
+  (void)y;
   // 자는 중("잘자"/밤모드)이면 아무 곳이나 탭하면 깨어남(대화 토글은 다음 탭부터).
   if (night_mode_is_night())
   {
@@ -115,31 +112,9 @@ void RealtimeAiMod::display_touched(int16_t x, int16_t y)
     sw_tone();
     return;
   }
-  if (box_stt.contain(x, y))
-  {
-    sw_tone();
-    toggleRealtimeRecord();
-  }
-#ifdef USE_SERVO
-  if (box_servo.contain(x, y))
-  {
-    sw_tone();
-    servo_home = !servo_home;
-    // Cancel any in-flight gesture suppression so the user's explicit toggle
-    // takes effect immediately (otherwise post-dialog suppress windows can
-    // swallow the first few seconds of intended idle gaze).
-    gesture_suppress_until = 0;
-  }
-#endif
-  if (box_BtnA.contain(x, y))
-  {
-    //sw_tone();
-  }
-  if (box_BtnC.contain(x, y))
-  {
-    btnC_pressed();
-  }
-
+  // 화면 어디를 눌러도 청취 시작/종료 토글.
+  sw_tone();
+  toggleRealtimeRecord();
 }
 
 void RealtimeAiMod::doubleTapped(float ax, float ay, float az)
