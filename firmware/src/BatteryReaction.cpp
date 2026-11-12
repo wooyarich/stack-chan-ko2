@@ -24,6 +24,7 @@ static bool   g_enabled        = true;
 static int    g_lowThreshold   = 20;     // percent
 static bool   g_lowReact       = true;
 static int    g_lowIntervalMin = 15;
+static bool   g_autoOffVbus    = false;  // 충전선(VBUS)이 빠지면 자동 종료(PC 전원 연동)
 static String g_lowPrompt    = "지금 배터리가 얼마 안 남았어. 배고픈 듯이 '배고파~ 충전 좀 해줘' 하고 귀엽게 말해줘. 짧게.";
 
 static void clampCfg() {
@@ -60,6 +61,7 @@ static void load_from_spiffs() {
     g_lowThreshold   = doc["lowThreshold"]   | g_lowThreshold;
     g_lowReact       = doc["lowReact"]       | g_lowReact;
     g_lowIntervalMin = doc["lowIntervalMin"] | g_lowIntervalMin;
+    g_autoOffVbus    = doc["autoOffVbus"]    | g_autoOffVbus;
     { const char* p = doc["lowPrompt"]    | ""; if (p && *p) g_lowPrompt = String(p); }
     clampCfg();
     Serial.println("[batt] loaded config from SPIFFS");
@@ -71,9 +73,13 @@ String battery_reaction_get_json() {
     doc["lowThreshold"]   = g_lowThreshold;
     doc["lowReact"]       = g_lowReact;
     doc["lowIntervalMin"] = g_lowIntervalMin;
+    doc["autoOffVbus"]    = g_autoOffVbus;
     doc["lowPrompt"]      = g_lowPrompt;
     doc["level"]          = (int)M5.Power.getBatteryLevel();   // live (for UI)
     doc["charging"]       = M5.Power.isCharging();
+#if defined(ARDUINO_M5STACK_CORES3)
+    doc["vbus"]           = M5.Power.Axp2101.isVBUS();         // USB 전원 연결 여부(진단용)
+#endif
     String out; serializeJson(doc, out); return out;
 }
 
@@ -84,6 +90,7 @@ bool battery_reaction_set_json(const String& json) {
     if (doc.containsKey("lowThreshold"))   g_lowThreshold   = doc["lowThreshold"];
     if (doc.containsKey("lowReact"))       g_lowReact       = doc["lowReact"];
     if (doc.containsKey("lowIntervalMin")) g_lowIntervalMin = doc["lowIntervalMin"];
+    if (doc.containsKey("autoOffVbus"))    g_autoOffVbus    = doc["autoOffVbus"];
     if (doc.containsKey("lowPrompt"))      { const char* p = doc["lowPrompt"]    | ""; g_lowPrompt = String(p); }
     clampCfg();
     File f = SPIFFS.open(BATT_SPIFFS_PATH, "w");
@@ -97,8 +104,31 @@ bool battery_reaction_set_json(const String& json) {
 void battery_reaction_tick() {
     static uint32_t lastCheckMs = 0;
     static uint32_t lastLowMs = 0;
+    static uint32_t lastVbusMs = 0;
+    static uint32_t vbusLostMs = 0;
 
     uint32_t now = millis();
+
+    // 충전선(VBUS) 감시 — 1초 주기. PC 전원과 연동해 자동 종료한다.
+    // (부팅 직후 5초는 PMIC 상태가 안정될 때까지 건너뛴다)
+    if (g_autoOffVbus && now > 5000 && now - lastVbusMs >= 1000) {
+        lastVbusMs = now;
+#if defined(ARDUINO_M5STACK_CORES3)
+        bool vbus = M5.Power.Axp2101.isVBUS();
+#else
+        bool vbus = M5.Power.getVBUSVoltage() > 4000;
+#endif
+        if (vbus) {
+            vbusLostMs = 0;
+        } else if (vbusLostMs == 0) {
+            vbusLostMs = now;
+        } else if (now - vbusLostMs >= 3000) {
+            Serial.println("[batt] VBUS lost 3s -> power off");
+            vbusLostMs = 0;
+            M5.Power.powerOff();
+        }
+    }
+
     if (now - lastCheckMs < 30000 && lastCheckMs != 0) return;   // every 30s
     lastCheckMs = now;
 

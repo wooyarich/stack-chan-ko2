@@ -10,6 +10,7 @@
 #include <ArduinoJson.h>
 #include "SpiRamJsonDocument.h"
 #include "RealtimeLLMBase.h"
+#include "UiTuning.h"   // 무음 청취 타임아웃(웹 설정값)
 //#include "FunctionCall.h"
 //#include "MCPClient.h"
 #include "Robot.h"
@@ -162,7 +163,7 @@ portTickType RealtimeLLMBase::checkRealtimeRecordTimeout()
 {
     portTickType elapsedTime;
     elapsedTime = (xTaskGetTickCount() - startTime) * portTICK_RATE_MS;
-    if(elapsedTime > REALTIME_RECORD_TIMEOUT){
+    if(elapsedTime > (portTickType)ui_listen_timeout_ms()){
         Serial.println("Realtime recording timeout");
         stopRealtimeRecord();
         user_talk_mode = false;   // 무음 타임아웃 = 대화 종료로 간주(먼저 말해도 청취 복귀 금지)

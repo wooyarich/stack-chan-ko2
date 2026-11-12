@@ -7,6 +7,7 @@
 #include "face/RoboEyesView.h"
 #include "NightMode.h"              // night_mode_is_night() — 수면/밤모드 눈 감기
 #include "Sfx.h"                    // 감정/취침·기상 효과음 이벤트
+#include "UiTuning.h"               // 시계/눈/시선 이동 웹 설정값
 // ⚠️ FluxGarage_RoboEyes.h 는 전역변수(BGCOLOR/MAINCOLOR) + 매크로(DEFAULT/ON/OFF/N/E/S/W..)를
 //    뿌리므로 반드시 맨 마지막에, 이 .cpp 한 곳에서만 include.
 #include <FluxGarage_RoboEyes.h>
@@ -120,7 +121,6 @@ static const char* emotion_event(int expr) {
 }
 
 static const int   EYE_H    = 92;   // 기본 눈 높이(roboeyes_view_begin 과 일치)
-static const int   EYE_TOP_MIN = 44;  // 눈 top 하한 — 상단 시계(efontKR_24)와 겹치지 않게
 static const float SAD_SCALE = 0.62f;
 static const float DOUBT_SQUINT = 0.45f;
 
@@ -259,9 +259,18 @@ void roboeyes_view_render() {
     if (!g_sleeping && g_talkLevel > 0.06f) g_eyes.setVFlicker(true, 1 + (int)(g_talkLevel * 3.0f));
     else                                    g_eyes.setVFlicker(false, 0);
 
+    // 시선 자동 이동 주기(웹 설정) — 값이 바뀌면 즉시 적용.
+    static int appliedIdleSec = -1;
+    int idleSec = ui_eye_idle_sec();
+    if (idleSec != appliedIdleSec) {
+      g_eyes.setIdleMode(ON, (byte)idleSec, 4);
+      appliedIdleSec = idleSec;
+    }
+
     // 상단 시계 영역으로 눈이 올라가지 않도록 하한 클램프(눈 사각형 top 좌표).
-    if (g_eyes.eyeLy     < EYE_TOP_MIN) g_eyes.eyeLy     = EYE_TOP_MIN;
-    if (g_eyes.eyeLyNext < EYE_TOP_MIN) g_eyes.eyeLyNext = EYE_TOP_MIN;
+    int eyeTop = ui_eye_top_min();
+    if (g_eyes.eyeLy     < eyeTop) g_eyes.eyeLy     = eyeTop;
+    if (g_eyes.eyeLyNext < eyeTop) g_eyes.eyeLyNext = eyeTop;
     g_eyes.drawEyes();                        // 눈 그리기(어댑터 display()=no-op → push 안 함)
 
     // 시선↔서보: 눈 목표 위치 → avatar gaze. 서보 태스크가 servo_home=false(발화 중)일 때
@@ -278,18 +287,20 @@ void roboeyes_view_render() {
     // (getLocalTime 이 간헐적으로 실패해 시계가 사라지는 현상 방지)
     static char     g_clockStr[8]  = "--:--";
     static uint32_t g_clockUpdMs   = 0;
-    uint32_t nowMs = millis();
-    if (nowMs - g_clockUpdMs >= 1000) {
-      g_clockUpdMs = nowMs;
-      struct tm tm_now;
-      if (getLocalTime(&tm_now, 0)) {
-        snprintf(g_clockStr, sizeof(g_clockStr), "%02d:%02d", tm_now.tm_hour, tm_now.tm_min);
+    if (ui_clock_enabled()) {
+      uint32_t nowMs = millis();
+      if (nowMs - g_clockUpdMs >= 1000) {
+        g_clockUpdMs = nowMs;
+        struct tm tm_now;
+        if (getLocalTime(&tm_now, 0)) {
+          snprintf(g_clockStr, sizeof(g_clockStr), "%02d:%02d", tm_now.tm_hour, tm_now.tm_min);
+        }
       }
+      g_cv->setFont(&fonts::efontKR_24);
+      g_cv->setTextColor(0xFFFF, 0x0000);     // 흰색
+      g_cv->setTextDatum(textdatum_t::top_center);
+      g_cv->drawString(g_clockStr, 160, 2);
     }
-    g_cv->setFont(&fonts::efontKR_24);
-    g_cv->setTextColor(0xFFFF, 0x0000);     // 흰색
-    g_cv->setTextDatum(textdatum_t::top_center);
-    g_cv->drawString(g_clockStr, 160, 2);
 
     if (!g_sleeping && g_status.length()) {   // 하단 상태 텍스트 오버레이(자는 중엔 숨김)
       g_cv->setFont(&fonts::efontKR_16);

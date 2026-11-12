@@ -9,6 +9,7 @@
 #include "Volume.h"
 #include "IdleMotion.h"
 #include "IdleTalk.h"
+#include "UiTuning.h"
 #include "PetReaction.h"
 #include "TouchReaction.h"
 #include "BatteryReaction.h"
@@ -255,6 +256,18 @@ void handle_volume_set() {
   } else {
     server.send(500, "text/plain", "SPIFFS write failed");
   }
+}
+
+// ---- 화면 · 움직임 튜닝 -----------------------------------------------------
+void handle_uitune_get() {
+  server.send(200, "application/json", ui_tuning_get_json());
+}
+void handle_uitune_set() {
+  if (server.method() != HTTP_POST) { server.send(405, "text/plain", "POST only"); return; }
+  if (ui_tuning_set_json(server.arg("plain")))
+    server.send(200, "text/plain", "ok");
+  else
+    server.send(400, "text/plain", "invalid JSON or write failed");
 }
 
 // ---- Idle motion (random expression/behaviour) -----------------------------
@@ -706,6 +719,9 @@ void init_web_server(void)
   // Idle motion
   server.on("/idle_get", handle_idle_get);
   server.on("/idle_set", HTTP_POST, handle_idle_set);
+  // 화면 · 움직임 튜닝
+  server.on("/uitune_get", handle_uitune_get);
+  server.on("/uitune_set", HTTP_POST, handle_uitune_set);
   // Proximity sensor
   server.on("/prox_get", handle_prox_get);
   server.on("/prox_set", HTTP_POST, handle_prox_set);

@@ -18,12 +18,6 @@
 #define RT_REC_LENGTH       (2000)      //0.125s 
 #define RT_REC_SAMPLE_RATE  (16000)
 
-#ifdef REALTIME_API_RECORD_TEST
-#define REALTIME_RECORD_TIMEOUT     (4 * 1000)      //ms  ※録音テスト再生用バッファのサイズに合わせる
-#else
-#define REALTIME_RECORD_TIMEOUT     (20 * 1000)      //ms  무음 20초면 청취 종료(터치하면 시작)
-#endif
-
 extern String InitBuffer;
 extern const String json_ChatString;
 

@@ -19,6 +19,7 @@
 #include "Gesture.h"
 #include "IdleMotion.h"
 #include "IdleTalk.h"
+#include "UiTuning.h"   // 화면·움직임 튜닝 값
 #include "PetReaction.h"
 #include "TouchReaction.h"
 #include "BatteryReaction.h"
@@ -175,11 +176,13 @@ void servo(void *args)
     // 목표 각도 계산: 발화 중/idle 모두 시선을 따라가되, idle 중 수면이거나 시선이
     // 거의 중앙이면 정면(0,0). (발화 중엔 항상 시선 추종.)
     int tgtX, tgtY;
+    int ampX = ui_servo_amp_x();
+    int ampY = ui_servo_amp_y();
     if(!servo_home)
     {
       avatar->getGaze(&gazeY, &gazeX);
-      tgtX = (int)(10.0 * gazeX);
-      tgtY = (int)(7.0 * gazeY);
+      tgtX = (int)(ampX * gazeX);
+      tgtY = (int)(ampY * gazeY);
     }
     else if(night_mode_is_sleeping())
     {
@@ -189,14 +192,14 @@ void servo(void *args)
     {
       avatar->getGaze(&gazeY, &gazeX);
       if(fabs(gazeX) < 0.15 && fabs(gazeY) < 0.15) { tgtX = 0; tgtY = 0; }   // 시선 중앙 → 정면
-      else { tgtX = (int)(10.0 * gazeX); tgtY = (int)(7.0 * gazeY); }
+      else { tgtX = (int)(ampX * gazeX); tgtY = (int)(ampY * gazeY); }
     }
 
-    // 목표가 바뀐 경우에만 이동(떨림/소음 방지). 이징 600ms 로 천천히 → 서보 소음 감소.
+    // 목표가 바뀐 경우에만 이동(떨림/소음 방지). 이징 값은 웹 설정에서 조정.
     if(tgtX != prevTgtX || tgtY != prevTgtY)
     {
       if(tgtX == 0 && tgtY == 0) robot->servo->moveToOrigin();
-      else                       robot->servo->moveTo(tgtX, tgtY, 600);
+      else                       robot->servo->moveTo(tgtX, tgtY, ui_servo_ease_ms());
       prevTgtX = tgtX; prevTgtY = tgtY;
     }
 #endif
@@ -749,6 +752,7 @@ void setup()
   // Breaks the "last conversation expression stays frozen" behaviour. Tunable
   // from the settings web page. Needs avatar + robot ready (done above).
   idle_motion_init();
+  ui_tuning_init();
 
   // Proximity reaction (eyes grow as something approaches; surprise when close).
   // Uses the CoreS3 built-in LTR-553 sensor on the internal I2C bus. Disables

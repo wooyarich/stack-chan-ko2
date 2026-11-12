@@ -196,6 +196,34 @@
       .catch(e => setStatus($('idleStatus'), '실패: ' + e, false));
   });
 
+  // ---------- 표시 · 움직임 (고급) ----------
+  function loadUiTune() {
+    fetch('/uitune_get').then(r => r.json()).then(d => {
+      $('uiClock').checked = !!d.clock;
+      $('uiEyeTop').value = d.eyeTopMin;
+      $('uiEyeIdle').value = d.eyeIdleSec;
+      $('uiServoEase').value = d.servoEaseMs;
+      $('uiServoAmpX').value = d.servoAmpX;
+      $('uiServoAmpY').value = d.servoAmpY;
+      $('uiListenSec').value = d.listenSec;
+    }).catch(e => setStatus($('uiStatus'), '로드 실패: ' + e, false));
+  }
+  $('uiSaveBtn').addEventListener('click', () => {
+    const obj = {
+      clock: $('uiClock').checked,
+      eyeTopMin: parseInt($('uiEyeTop').value, 10),
+      eyeIdleSec: parseInt($('uiEyeIdle').value, 10),
+      servoEaseMs: parseInt($('uiServoEase').value, 10),
+      servoAmpX: parseInt($('uiServoAmpX').value, 10),
+      servoAmpY: parseInt($('uiServoAmpY').value, 10),
+      listenSec: parseInt($('uiListenSec').value, 10),
+    };
+    setStatus($('uiStatus'), '저장 중...', true);
+    postJson('/uitune_set', obj)
+      .then(o => setStatus($('uiStatus'), (o.ok ? '저장됨 (즉시 적용)' : '실패: ' + o.t), o.ok))
+      .catch(e => setStatus($('uiStatus'), '실패: ' + e, false));
+  });
+
   // ---------- 근접센서 ----------
   let proxPollTimer = null;
   function applyProx(d) {
@@ -384,6 +412,7 @@
       $('battLowThresh').value = d.lowThreshold;
       $('battLowInterval').value = d.lowIntervalMin;
       $('battLowPrompt').value = d.lowPrompt || '';
+      $('battAutoOff').checked = !!d.autoOffVbus;
       $('battLive').innerHTML = '현재: ' + d.level + '% ' + (d.charging ? '⚡충전 중' : '(방전 중)');
     }).catch(e => setStatus($('battStatus'), '로드 실패: ' + e, false));
   }
@@ -394,6 +423,7 @@
       lowThreshold: parseInt($('battLowThresh').value, 10),
       lowIntervalMin: parseInt($('battLowInterval').value, 10),
       lowPrompt: $('battLowPrompt').value,
+      autoOffVbus: $('battAutoOff').checked,
     };
     setStatus($('battStatus'), '저장 중...', true);
     postJson('/batt_set', obj)
@@ -667,6 +697,7 @@
   loadSchedules();
   loadVolume();
   loadIdle();
+  loadUiTune();
   loadProx();
   loadTalk();
   loadPet();
