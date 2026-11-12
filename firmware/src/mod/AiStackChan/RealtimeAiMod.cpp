@@ -104,7 +104,6 @@ void RealtimeAiMod::btnC_pressed(void)
 void RealtimeAiMod::display_touched(int16_t x, int16_t y)
 {
   (void)x;
-  (void)y;
   // 자는 중("잘자"/밤모드)이면 아무 곳이나 탭하면 깨어남(대화 토글은 다음 탭부터).
   if (night_mode_is_night())
   {
@@ -112,7 +111,18 @@ void RealtimeAiMod::display_touched(int16_t x, int16_t y)
     sw_tone();
     return;
   }
-  // 화면 어디를 눌러도 청취 시작/종료 토글.
+#ifdef USE_SERVO
+  // 하단 60px: 머리를 정면(가운데)으로 되돌린다. (청취 토글은 하지 않는다)
+  if (y >= (int16_t)(M5.Display.height() - 60))
+  {
+    sw_tone();
+    servo_home = true;                 // 정면 복귀 모드
+    avatar.setGaze(0.0f, 0.0f);        // 시선도 가운데로
+    robot->servo->moveToOrigin();
+    return;
+  }
+#endif
+  // 그 외 화면 어디를 눌러도 청취 시작/종료 토글.
   sw_tone();
   toggleRealtimeRecord();
 }
