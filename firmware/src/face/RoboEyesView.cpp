@@ -271,6 +271,9 @@ void roboeyes_view_render() {
     int eyeTop = ui_eye_top_min();
     if (g_eyes.eyeLy     < eyeTop) g_eyes.eyeLy     = eyeTop;
     if (g_eyes.eyeLyNext < eyeTop) g_eyes.eyeLyNext = eyeTop;
+    // RoboEyes 는 배경을 지우지 않고 눈만 다시 그린다. 이동/깜빡임 트윈값이 매 프레임
+    // 조금씩 달라져 이전 프레임의 가장자리가 얇은 가로줄로 누적되므로 매 프레임 클리어한다.
+    g_cv->fillScreen(0x0000);
     g_eyes.drawEyes();                        // 눈 그리기(어댑터 display()=no-op → push 안 함)
 
     // 시선↔서보: 눈 목표 위치 → avatar gaze. 서보 태스크가 servo_home=false(발화 중)일 때
