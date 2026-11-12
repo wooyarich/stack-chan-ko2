@@ -39,6 +39,7 @@ public:   //本当はprivateにしたいところだがコールバック関数�
     int rtRecSamplerate;
     int rtRecLength;
     bool realtime_recording;
+    bool user_talk_mode = false;   // 터치로 시작한 대화인지(연속 대화 모드)
     bool response_done;
     portTickType startTime;
 
@@ -82,6 +83,12 @@ public:
     void resetRealtimeRecordStartTime();
     portTickType checkRealtimeRecordTimeout();
     bool isRealtimeRecording() {return realtime_recording;};
+
+    // 터치로 시작한 대화인지 여부(연속 대화 모드).
+    // 터치로 청취를 시작하면 true 가 되어, 응답이 끝난 뒤에도 자동으로 청취를 재개한다.
+    // 터치 없이 로봇이 먼저 말한 경우(false)에는 응답 후 청취로 넘어가지 않는다.
+    bool isUserTalkMode() { return user_talk_mode; }
+    void setUserTalkMode(bool on) { user_talk_mode = on; }
 
     int base64_decode(const char* input, int size, char* output);
     void hexdump(const void *mem, uint32_t len, uint8_t cols = 16);

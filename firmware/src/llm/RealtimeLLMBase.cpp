@@ -165,6 +165,7 @@ portTickType RealtimeLLMBase::checkRealtimeRecordTimeout()
     if(elapsedTime > REALTIME_RECORD_TIMEOUT){
         Serial.println("Realtime recording timeout");
         stopRealtimeRecord();
+        user_talk_mode = false;   // 무음 타임아웃 = 대화 종료로 간주(먼저 말해도 청취 복귀 금지)
 #ifdef REALTIME_API_RECORD_TEST
         M5.Mic.end();
         if (M5.Speaker.begin())

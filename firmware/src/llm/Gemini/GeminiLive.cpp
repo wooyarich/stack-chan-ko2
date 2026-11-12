@@ -101,7 +101,8 @@ static void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
         M5.Speaker.end();
         M5.Mic.begin();
         exitMutexAudio();
-        // 자동 청취 재시작 금지 — 청취는 오직 화면 터치로만 시작한다.
+        // 터치로 시작한 대화일 때만 자동 재개(연속 대화).
+        if(p_this->isUserTalkMode()) p_this->startRealtimeRecord();
 
         for(int i=0; i<2; i++){
             memset(p_this->audioBuf[i], 0, 100 * 1024);
@@ -265,7 +266,8 @@ static void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
                 M5.Speaker.end();
                 M5.Mic.begin();
                 exitMutexAudio();
-                // 자동 청취 재시작 금지 — 청취는 오직 화면 터치로만 시작한다.
+                // 터치로 시작한 대화일 때만 자동 재개(연속 대화).
+                if(p_this->isUserTalkMode()) p_this->startRealtimeRecord();
 
                 for(int i=0; i<2; i++){
                     memset(p_this->audioBuf[i], 0, 100 * 1024);

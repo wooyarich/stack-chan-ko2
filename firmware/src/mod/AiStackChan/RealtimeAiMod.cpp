@@ -211,7 +211,9 @@ void RealtimeAiMod::toggleRealtimeRecord(void)
 {
   if(pRtLLM->isRealtimeRecording()){
     pRtLLM->stopRealtimeRecord();
+    pRtLLM->setUserTalkMode(false);   // 터치로 청취 종료 → 연속 대화 해제
   }else{
+    pRtLLM->setUserTalkMode(true);    // 터치로 청취 시작 → 응답 후에도 계속 청취
     pRtLLM->startRealtimeRecord();
   }
 }
