@@ -112,10 +112,9 @@ void RealtimeAiMod::display_touched(int16_t x, int16_t y)
     return;
   }
 #ifdef USE_SERVO
-  // 하단 60px: 머리를 정면(가운데)으로 되돌린다. (청취 토글은 하지 않는다)
+  // 하단 60px: 머리를 정면(가운데)으로 되돌린다. (청취 토글 없음, 알림음도 없음)
   if (y >= (int16_t)(M5.Display.height() - 60))
   {
-    sw_tone();
     servo_home = true;                 // 정면 복귀 모드
     avatar.setGaze(0.0f, 0.0f);        // 시선도 가운데로
     robot->servo->moveToOrigin();

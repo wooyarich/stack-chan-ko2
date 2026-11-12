@@ -306,8 +306,7 @@ void roboeyes_view_render() {
       g_cv->setFont(&fonts::efontKR_16);
       g_cv->setTextColor(0xFFFF, 0x0000);     // 흰색
       g_cv->setTextDatum(textdatum_t::bottom_center);
-      // 하단 60px는 "머리 정면 복귀" 터치 영역이므로, 문구는 그 위에 그린다.
-      g_cv->drawString(g_status.c_str(), 160, 176);
+      g_cv->drawString(g_status.c_str(), 160, 236);   // 화면 하단(240 높이, 약간 여백)
     }
   }
   g_cv->pushSprite(0, 0);
