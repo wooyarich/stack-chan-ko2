@@ -312,7 +312,7 @@ void roboeyes_view_render() {
     if (v > 1) v = 1; else if (v < -1) v = -1;
     avatar.setGaze(v, h);
 
-    // 상단 중앙 현재 시각 — 12시간제(h:mm). 앞자리 0 없이 그려 가운데 정렬을 유지한다.
+    // 상단 중앙 현재 시각 — 문자열을 캐시해 매 프레임 같은 값을 그린다.
     // (getLocalTime 이 간헐적으로 실패해 시계가 사라지는 현상 방지)
     static char     g_clockStr[8]  = "--:--";
     static uint32_t g_clockUpdMs   = 0;
@@ -322,9 +322,7 @@ void roboeyes_view_render() {
         g_clockUpdMs = nowMs;
         struct tm tm_now;
         if (getLocalTime(&tm_now, 0)) {
-          int h12 = tm_now.tm_hour % 12;
-          if (h12 == 0) h12 = 12;      // 00시/12시 → 12
-          snprintf(g_clockStr, sizeof(g_clockStr), "%d:%02d", h12, tm_now.tm_min);
+          snprintf(g_clockStr, sizeof(g_clockStr), "%02d:%02d", tm_now.tm_hour, tm_now.tm_min);
         }
       }
       g_cv->setFont(&fonts::efontKR_24);
