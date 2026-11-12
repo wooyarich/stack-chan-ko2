@@ -9,3 +9,18 @@ firmware/lib/aquestalk/
 .DS_Store
 Thumbs.db
 *~
+
+# ===== 비밀값 (절대 커밋 금지) =====
+# 실제 API 키/비밀번호는 저장소 밖(예: ~/tmp/secrets/)에서 관리한다.
+.env
+.env.*
+*.key
+*.pem
+*.p12
+secrets/
+secret/
+*secret*.local.*
+*secrets*.json
+*secrets*.yaml
+SC_SecConfig.local.yaml
+credentials.*
