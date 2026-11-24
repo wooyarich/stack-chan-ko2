@@ -20,7 +20,8 @@
 #include "IdleMotion.h"
 #include "IdleTalk.h"
 #include "UiTuning.h"   // 화면·움직임 튜닝 값
-#include "FaceTrack.h"  // 간이 얼굴 추적(주기 샘플링)
+#include "FaceTrack.h"
+#include "LlmOverride.h"  // 간이 얼굴 추적(주기 샘플링)
 #include "PetReaction.h"
 #include "TouchReaction.h"
 #include "BatteryReaction.h"
@@ -657,7 +658,22 @@ void setup()
       M5.Lcd.print("Can't connect to WiFi. Start offline mode.\n");
     }
 
-    robot = new Robot(system_config);
+    // AI 서비스(OpenAI/Gemini)·키 선택값 — SD 의 llm.json 이 있으면 YAML 값보다 우선한다.
+  llm_override_init();
+  {
+    api_keys_s* keys = system_config.getAPISetting();
+    if (keys) {
+      ex_config_s ex = system_config.getExConfig();
+      ex.llm.type = llm_override_type();
+      system_config.setExConfig(ex);
+      if (llm_override_key()[0]) keys->ai_service = String(llm_override_key());
+      Serial.printf("[llm] using %s (key %s)\n",
+                    (llm_override_type() == LLM_TYPE_GEMINI) ? "gemini" : "openai",
+                    llm_override_key()[0] ? "from llm.json" : "from yaml");
+    }
+  }
+
+  robot = new Robot(system_config);
 
     //SD.end();
   } else {

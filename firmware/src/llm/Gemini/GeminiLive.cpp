@@ -10,6 +10,7 @@
 #include <ArduinoJson.h>
 #include "SpiRamJsonDocument.h"
 #include "GeminiLive.h"
+#include "../../LlmOverride.h"
 #include "../ChatGPT/FunctionCall.h"    // GeminiとChatGPTのFunction Calling仕様は共通
 //#include "MCPClient.h"
 #include "Robot.h"
@@ -132,6 +133,8 @@ static void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
                 sessionUpdateDoc["setup"]["systemInstruction"]["parts"][0]["text"] = p_this->role;
                 sessionUpdateDoc["setup"]["systemInstruction"]["parts"][1]["text"] = p_this->systemRole;
                 sessionUpdateDoc["setup"]["systemInstruction"]["parts"][2]["text"] = p_this->userInfo;
+                // 음성: 사용자가 고른 보이스(기본 Zephyr)
+                sessionUpdateDoc["setup"]["generationConfig"]["speechConfig"]["voiceConfig"]["prebuiltVoiceConfig"]["voiceName"] = llm_override_voice();
 
                 // MCP tools listをfunctionとして挿入
                 //

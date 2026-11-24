@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>스택짱 설정</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="settings.js?v=12" defer></script>
+  <script src="settings.js?v=13" defer></script>
   <style>
     html { font-size: 16px; }
     body { font-family: Arial, sans-serif; margin: 0.8em; background: #f4f5f7; color: #222; }
@@ -23,7 +23,7 @@
     details[open] summary::before { content: "▾ "; }
     .body { padding-bottom: 1em; }
     label { display: block; margin: 0.6em 0 0.3em; font-weight: bold; font-size: 0.9em; }
-    textarea, input[type=text], input[type=password], input[type=number] {
+    textarea, input[type=text], input[type=password], input[type=number], select {
       width: 100%; padding: 0.55em; border-radius: 6px;
       border: 1px solid #ccc; box-sizing: border-box; font-size: 0.95em;
     }
@@ -58,6 +58,23 @@
 
   <!-- ============ 페르소나 ============ -->
   <details open>
+    <summary>AI 서비스 (OpenAI / Gemini)</summary>
+    <div class="body">
+      <label for="llmProvider">사용할 모델</label>
+      <select id="llmProvider">
+        <option value="openai">OpenAI (gpt-realtime)</option>
+        <option value="gemini">Google Gemini Live (무료)</option>
+      </select>
+      <label for="llmVoice">Gemini 보이스</label>
+      <input type="text" id="llmVoice" placeholder="Zephyr">
+      <label for="llmKey">API 키 (변경할 때만 입력)</label>
+      <input type="password" id="llmKey" placeholder="저장된 키를 사용 중">
+      <p class="note">키는 SD카드(/app/AiStackChanEx/llm.json)에만 저장되고 git 저장소에는 포함되지 않습니다. 저장 후 재부팅하면 적용됩니다.</p>
+      <button type="button" id="llmSaveBtn">AI 설정 저장</button>
+      <div id="llmStatus" class="status"></div>
+    </div>
+  </details>
+
     <summary>페르소나 (Role)</summary>
     <div class="body">
       <label for="personaSelect">페르소나 선택</label>

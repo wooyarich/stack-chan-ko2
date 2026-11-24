@@ -11,6 +11,7 @@
 #include "IdleTalk.h"
 #include "UiTuning.h"
 #include "FaceTrack.h"
+#include "LlmOverride.h"
 #include "PetReaction.h"
 #include "TouchReaction.h"
 #include "BatteryReaction.h"
@@ -256,6 +257,20 @@ void handle_volume_set() {
     server.send(200, "text/plain", String(v));
   } else {
     server.send(500, "text/plain", "SPIFFS write failed");
+  }
+}
+
+// ---- AI 서비스 선택 (OpenAI / Gemini) -----------------------------------------
+void handle_llmcfg_get() {
+  server.send(200, "application/json", llm_override_get_json(true));
+}
+void handle_llmcfg_set() {
+  if (server.method() != HTTP_POST) { server.send(405, "text/plain", "POST only"); return; }
+  if (llm_override_set_json(server.arg("plain"))) {
+    server.send(200, "application/json",
+      "{\"ok\":true,\"note\":\"저장됨. 재부팅하면 적용됩니다.\"}");
+  } else {
+    server.send(400, "application/json", "{\"ok\":false,\"t\":\"저장 실패(SD 확인)\"}");
   }
 }
 
@@ -735,6 +750,8 @@ void init_web_server(void)
   // 화면 · 움직임 튜닝
   server.on("/uitune_get", handle_uitune_get);
   server.on("/uitune_set", HTTP_POST, handle_uitune_set);
+  server.on("/llmcfg_get", handle_llmcfg_get);
+  server.on("/llmcfg_set", HTTP_POST, handle_llmcfg_set);
   server.on("/facetrack_get", handle_facetrack_get);
   server.on("/facetrack_set", HTTP_POST, handle_facetrack_set);
   // Proximity sensor
